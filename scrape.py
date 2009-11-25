@@ -1,0 +1,138 @@
+import html5lib
+from html5lib import treebuilders
+import urllib
+from django.template import Template, Context
+from django.conf import settings
+
+# Initialise Django's settings
+settings.configure()
+
+BASE_API_URL = 'http://www.last.fm'
+TEMPLATE_FILE = 'template.xml'
+OUTPUT_DIR = 'tables'
+AUTHOR = 'Jamie Matthews'
+
+BASE_ENV_URL = 'http://j4mie.uk.to:8000'
+ENV_FILENAME = 'lastfm.env'
+env_file = open("%s/%s" % (OUTPUT_DIR, ENV_FILENAME), 'w')
+
+xml_template = Template(open(TEMPLATE_FILE).read())
+
+def get_soup(url):
+    html = urllib.urlopen(url)
+    parser = html5lib.HTMLParser(tree=treebuilders.getTreeBuilder('beautifulsoup'))
+    return parser.parse(html)
+
+def get_method_list():
+    soup = get_soup(BASE_API_URL + '/api')
+
+    methodlinks = soup.find(id="methods").findAll("a")
+
+    methods = []
+
+    for method in methodlinks:
+        name, url = method.renderContents(), BASE_API_URL + method['href']
+
+        method = {
+            'name' : name,
+            'url' : url,
+        }
+
+        methods.append(method)
+
+    return methods
+
+def get_method_details(name, url):
+    """
+    Get information about a particular API method from an API documentation URL.
+
+    Also gets passed the name of the method, which we have anyway from the
+    get_method_list function. This saves re-parsing the name from the HTML.
+
+    Returns a dictionary containing the keys:
+        name - the name of the method
+        url - the url for the method's information page
+        requires_auth - a boolean representing whether the method requires authentication
+        params - a list of dictionaries containing information about each parameter:
+            name - the name of the parameter
+            description - description of the parameter
+            required - boolean representing whether the param is required
+    """
+    soup = get_soup(url)
+
+    # Get the description of the method 
+    description = soup.find("div", "wsdescription").renderContents().strip().replace("\n", " ")
+    
+    # Get the HTML elements representing the method parameters
+    param_elems = soup.findAll("span", "param")
+
+    params = []
+    requires_auth = False
+
+    for param in param_elems:
+        param_name, details = param.renderContents(), param.nextSibling
+
+        # Get round odd malformed HTML problem - empty params
+        if len(param_name.strip()) == 0 or len(details.strip()) == 0:
+                continue
+
+        # Some of the items with class "param" are actually error codes,
+        # and so we want to disregard them. These all have numeric "names", 
+        # so if we can successfully convert the name to an int, we can safely
+        # throw it away.
+        try: # exclude errors
+            int(param_name)
+        except:
+            param_info = {'name' : param_name}
+            required, desc = details.split(":", 1)
+            param_info['required'] = required.strip() == '(Required)'
+            param_info['description'] = desc.strip()
+            params.append(param_info)
+            
+            if param_name == 'api_sig': requires_auth = True
+
+    details = {
+        'params': params,
+        'name': name,
+        'description': description,
+        'url': url,
+        'requires_auth': requires_auth,
+    }
+
+    return details
+
+def render_to_xml(method_details):
+    """
+    Convert the dictionary representing a method into XML.
+    Uses Django's templating system.
+    """
+    method_details['author'] = AUTHOR
+    return xml_template.render(Context(method_details))
+
+def write_file(name, xml):
+    basename = "lastfm.%s.xml" % name.lower()
+    
+    filename = "%s/%s" % (OUTPUT_DIR, basename)
+    file = open(filename, 'w')
+    file.write(xml)
+    file.close()
+    print "\tWrote xml to %s" % filename
+    return basename
+
+def add_to_env(filename, methodname):
+    line = "USE '%s/%s' AS lastfm.%s;\n" % (BASE_ENV_URL, filename, methodname.lower())
+    env_file.write(line)
+
+if __name__ == '__main__':
+    methods = get_method_list()
+
+    for method in methods:
+        print "\n----- Processing method: %s -----" % method['name']
+        method_details = get_method_details(method['name'], method['url'])
+
+        if not method_details['requires_auth']: # check if public
+            xml = render_to_xml(method_details)
+            filename = write_file(method_details['name'], xml)
+            add_to_env(filename, method_details['name'])
+        else:
+            print "\tMethod is not public, skipping"
