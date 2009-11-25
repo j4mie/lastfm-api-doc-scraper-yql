@@ -1,5 +1,35 @@
+"""
+Screen-scrape the Last.fm API documentation to autogenerate Yahoo! Query
+Language (YQL) Open Data Tables for each public API method.
+
+As with any screen-scraper, this is fragile and ugly. Blame Last.fm for
+having such a rubbish, hard-to-use, badly documented API that something 
+like this is necessary.
+
+This only returns infomation about the public API methods, ie those that just
+require an API key to use. You could probably use YQL's ability to execute 
+server-side JavaScript (http://developer.yahoo.com/yql/guide/yql-execute-chapter.html) 
+to create tables which could authenticate with Last.fm to call the private
+methods, but I personally had no need for this so didn't bother.
+
+To use this, you'll need to create a directory with the name defined in OUTPUT_DIR. 
+Your XML and environment files will end up in here.
+
+The BASE_ENV_URL variable is used to generate an Environment file
+containing table definition for all the XML files that have been generated.
+You should put in here the URL at which you'll be serving the files.
+
+    See:
+        http://developer.yahoo.com/yql/
+        http://www.datatables.org/
+        http://www.last.fm/api
+
+    Dependencies:
+        html5lib - http://code.google.com/p/html5lib/
+        django - http://www.djangoproject.com/
+
+"""
 import html5lib
-from html5lib import treebuilders
 import urllib
 from django.template import Template, Context
 from django.conf import settings
@@ -12,22 +42,28 @@ TEMPLATE_FILE = 'template.xml'
 OUTPUT_DIR = 'tables'
 AUTHOR = 'Jamie Matthews'
 
-BASE_ENV_URL = 'http://j4mie.uk.to:8000'
+BASE_ENV_URL = 'http://www.your-server.com'
 ENV_FILENAME = 'lastfm.env'
-env_file = open("%s/%s" % (OUTPUT_DIR, ENV_FILENAME), 'w')
 
+env_file = open("%s/%s" % (OUTPUT_DIR, ENV_FILENAME), 'w')
 xml_template = Template(open(TEMPLATE_FILE).read())
 
 def get_soup(url):
+    """
+    Get a BeautifulSoup object representing the given URL
+    """
     html = urllib.urlopen(url)
-    parser = html5lib.HTMLParser(tree=treebuilders.getTreeBuilder('beautifulsoup'))
+    parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder('beautifulsoup'))
     return parser.parse(html)
 
 def get_method_list():
+    """
+    Get list of methods from the Last.fm API documentation
+
+    Returns a list of dictionaries containing the keys "name" and "url"
+    """
     soup = get_soup(BASE_API_URL + '/api')
-
     methodlinks = soup.find(id="methods").findAll("a")
-
     methods = []
 
     for method in methodlinks:
@@ -80,7 +116,7 @@ def get_method_details(name, url):
         # and so we want to disregard them. These all have numeric "names", 
         # so if we can successfully convert the name to an int, we can safely
         # throw it away.
-        try: # exclude errors
+        try: 
             int(param_name)
         except:
             param_info = {'name' : param_name}
@@ -110,8 +146,10 @@ def render_to_xml(method_details):
     return xml_template.render(Context(method_details))
 
 def write_file(name, xml):
+    """
+    Put the xml in a file. Returns the base name of the file.
+    """
     basename = "lastfm.%s.xml" % name.lower()
-    
     filename = "%s/%s" % (OUTPUT_DIR, basename)
     file = open(filename, 'w')
     file.write(xml)
@@ -120,6 +158,9 @@ def write_file(name, xml):
     return basename
 
 def add_to_env(filename, methodname):
+    """
+    Add the supplied filename and method name to the env file defined in ENV_FILENAME
+    """
     line = "USE '%s/%s' AS lastfm.%s;\n" % (BASE_ENV_URL, filename, methodname.lower())
     env_file.write(line)
 
