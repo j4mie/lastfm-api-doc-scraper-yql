@@ -1,0 +1,29 @@
+Screen-scrape the Last.fm API documentation to autogenerate Yahoo! Query
+Language (YQL) Open Data Tables for each public API method.
+
+As with any screen-scraper, this is fragile and ugly. Blame Last.fm for
+having such a rubbish, hard-to-use, badly documented API that something 
+like this is necessary.
+
+This only returns infomation about the public API methods, ie those that just
+require an API key to use. You could probably use YQL's ability to execute 
+server-side JavaScript (http://developer.yahoo.com/yql/guide/yql-execute-chapter.html) 
+to create tables which could authenticate with Last.fm to call the private
+methods, but I personally had no need for this so didn't bother.
+
+To use this, you'll need to create a directory with the name defined in OUTPUT_DIR. 
+Your XML and environment files will end up in here.
+
+The BASE_ENV_URL variable is used to generate an Environment file
+containing table definition for all the XML files that have been generated.
+You should put in here the URL at which you'll be serving the files.
+
+    See:
+        http://developer.yahoo.com/yql/
+        http://www.datatables.org/
+        http://www.last.fm/api
+
+    Dependencies:
+        html5lib - http://code.google.com/p/html5lib/
+        django - http://www.djangoproject.com/
+
