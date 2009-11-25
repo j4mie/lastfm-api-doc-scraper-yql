@@ -7,7 +7,7 @@ like this is necessary.
 
 This only returns infomation about the public API methods, ie those that just
 require an API key to use. You could probably use YQL's ability to execute 
-server-side JavaScript (http://developer.yahoo.com/yql/guide/yql-execute-chapter.html) 
+server-side JavaScript ( http://developer.yahoo.com/yql/guide/yql-execute-chapter.html ) 
 to create tables which could authenticate with Last.fm to call the private
 methods, but I personally had no need for this so didn't bother.
 
