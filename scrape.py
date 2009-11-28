@@ -17,6 +17,7 @@ ENV_FILENAME = 'lastfm.env'
 env_file = open("%s/%s" % (OUTPUT_DIR, ENV_FILENAME), 'w')
 xml_template = Template(open(TEMPLATE_FILE).read())
 
+
 def get_soup(url):
     """
     Get a BeautifulSoup object representing the given URL
@@ -24,6 +25,7 @@ def get_soup(url):
     html = urllib.urlopen(url)
     parser = html5lib.HTMLParser(tree=html5lib.treebuilders.getTreeBuilder('beautifulsoup'))
     return parser.parse(html)
+
 
 def get_method_list():
     """
@@ -46,6 +48,7 @@ def get_method_list():
         methods.append(method)
 
     return methods
+
 
 def get_method_details(name, url):
     """
@@ -79,7 +82,7 @@ def get_method_details(name, url):
 
         # Get round odd malformed HTML problem - empty params
         if len(param_name.strip()) == 0 or len(details.strip()) == 0:
-                continue
+            continue
 
         # Some of the items with class "param" are actually error codes,
         # and so we want to disregard them. These all have numeric "names", 
@@ -94,7 +97,8 @@ def get_method_details(name, url):
             param_info['description'] = desc.strip()
             params.append(param_info)
             
-            if param_name == 'api_sig': requires_auth = True
+            if param_name == 'api_sig':
+                requires_auth = True
 
     details = {
         'params': params,
@@ -106,6 +110,7 @@ def get_method_details(name, url):
 
     return details
 
+
 def render_to_xml(method_details):
     """
     Convert the dictionary representing a method into XML.
@@ -113,6 +118,7 @@ def render_to_xml(method_details):
     """
     method_details['author'] = AUTHOR
     return xml_template.render(Context(method_details))
+
 
 def write_file(name, xml):
     """
@@ -126,12 +132,14 @@ def write_file(name, xml):
     print "\tWrote xml to %s" % filename
     return basename
 
+
 def add_to_env(filename, methodname):
     """
     Add the supplied filename and method name to the env file defined in ENV_FILENAME
     """
     line = "USE '%s/%s' AS lastfm.%s;\n" % (BASE_ENV_URL, filename, methodname.lower())
     env_file.write(line)
+
 
 if __name__ == '__main__':
     methods = get_method_list()
